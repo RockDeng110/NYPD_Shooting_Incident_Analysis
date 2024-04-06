@@ -1,0 +1,352 @@
+---
+title: "NYPD_Shooting_Incident"
+author: "RockDeng"
+date: "2024-01-04"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r include = FALSE}
+# Load libraries
+library(tidyverse)
+
+```
+### 1. Import data and get some basic understanding of the data.
+
+Use R to import and take a glimpse of the raw data.
+```{r import_files}
+# Import files
+df <- read_csv("NYPD_Shooting_Incident_Data__Historic_.csv")
+glimpse(df)
+dim(df)
+n = dim(df)[1]
+n
+```
+
+As we can see the output from the above code. This data set has **27312** shooting incidents in total and **21** columns. 
+
+Next, let's check out the meaning of each column or variable.
+
+Column | Description 
+-------|----------
+INCIDENT_KEY | Randomly generated persistent ID for each arrest	
+OCCUR_DATE   | Exact date of the shooting incident	
+OCCUR_TIME   | Exact time of the shooting incident   
+BORO         | Borough where the shooting incident occurred        
+LOC_OF_OCCUR_DESC  | NA  
+PRECINCT           | Precinct where the shooting incident occurred 
+JURISDICTION_CODE  | Jurisdiction where the shooting incident occurred.  
+LOC_CLASSFCTN_DESC | NA 
+LOCATION_DESC      | Location of the shooting incident   
+STATISTICAL_MURDER_FLAG | Shooting resulted in the victim’s death which would be counted as a murder
+PERP_AGE_GROUP     | Perpetrator’s age within a category   
+PERP_SEX           | Perpetrator’s sex description  
+PERP_RACE          | Perpetrator’s race description 
+VIC_AGE_GROUP      | Victim’s age within a category  
+VIC_SEX            | Victim’s sex description 
+VIC_RACE           | Victim’s race description  
+X_COORD_CD         | Midblock X-coordinate for New York State Plane Coordinate System, Long Island Zone, NAD 83, units feet (FIPS 3104)   
+Y_COORD_CD         | Midblock Y-coordinate for New York State Plane Coordinate System, Long Island Zone, NAD 83, units feet (FIPS 3104)   
+Latitude           | Latitude coordinate for Global Coordinate System, WGS 1984, decimal degrees (EPSG 4326)  
+Longitude          | Longitude coordinate for Global Coordinate System, WGS 1984, decimal degrees (EPSG 4326)  
+Lon_Lat            | Combination of Latitude and Longtitude
+
+
+### 2. Tidying and Transforming Data
+
+#### Checkout the summary of the dataframe.
+* We can find out that the categorical varaibles didn't have NA value.
+* Do they really have no NA, or the NA values just hide in the strings, let's find out lately.
+```{r}
+summary(df)
+```
+#### Convert the columns to convenient data type
+
+* Conver the OCCUR_DATE variable from date string to date data type
+```{r}
+#glimpse(df)
+# Convert OCCUR_DATE from string to date format
+df$OCCUR_DATE = as.Date(df$OCCUR_DATE, format = "%m/%d/%Y")
+```
+
+* Checkout NA values in VIC_AGE_GROUP
+```{r}
+# Convert category columns to factors
+unique(df$VIC_AGE_GROUP)
+df %>%
+  filter(VIC_AGE_GROUP %in% c("UNKNOWN")) %>%
+  count() ->
+  vic_age_na_count
+
+# Pecentage of na values in this variable
+(vic_age_na_count / n) * 100
+
+# Convert na values to system NA
+df$VIC_AGE_GROUP[df$VIC_AGE_GROUP == "UNKNOWN"] = NA
+
+unique(df$VIC_AGE_GROUP)
+```
+
+* Checkout NA values in VIC_SEX
+U should stand for "undefined", let's set it to NA.
+```{r}
+unique(df$VIC_SEX)
+df %>%
+  filter(VIC_SEX %in% c("UNKNOWN")) %>%
+  count() ->
+  vic_sex_na_count
+
+# Pecentage of na values in this variable
+(vic_sex_na_count / n) * 100
+
+# Convert na values to system NA
+df$VIC_SEX[df$VIC_SEX == "U"] = NA
+
+unique(df$VIC_SEX)
+```
+
+* Checkout NA values in VIC_RACE
+```{r}
+unique(df$VIC_RACE)
+df %>%
+  filter(VIC_RACE %in% c("UNKNOWN")) %>%
+  count() ->
+  vic_race_na_count
+
+# Pecentage of na values in this variable
+(vic_race_na_count / n) * 100
+
+# Convert na values to system NA
+df$VIC_RACE[df$VIC_RACE == "UNKNOWN"] = NA
+
+unique(df$VIC_RACE)
+```
+
+* Checkout NA values in PERP_AGE_GROUP
+  * The rate of NA value in this variable is really high, and almost half of the observations are NA here.
+  * Therefore this variable might not useful for modeling, otherwise we need to remove almost half of the dataset.
+```{r}
+unique(df$PERP_AGE_GROUP)
+df %>%
+  filter(PERP_AGE_GROUP %in% c(NA, "UNKNOWN", "(null)")) %>%
+  count() ->
+  perp_age_na_count
+
+# Pecentage of na values in this variable
+(perp_age_na_count / n) * 100
+
+# Convert na values to system NA
+df$PERP_AGE_GROUP[df$PERP_AGE_GROUP %in% c(NA, "UNKNOWN", "(null)")] = NA
+
+unique(df$PERP_AGE_GROUP)
+```
+
+* PERP_SEX
+  * Like the previous variable PERP_AGE_GROUP, the rate of NA values in this variable is almost same as the PERP_AGE_GROUP.
+```{r}
+unique(df$PERP_SEX)
+df %>%
+  filter(PERP_SEX %in% c(NA, "(null)", "U")) %>%
+  count() ->
+  perp_sex_na_count
+perp_sex_na_count
+
+# Pecentage of na values in this variable
+(perp_sex_na_count / n) * 100
+
+# Convert na values to system NA
+df$PERP_SEX[df$PERP_SEX %in% c(NA, "UNKNOWN", "(null)")] = NA
+
+unique(df$PERP_SEX)
+```
+
+* PERP_RACE
+  * NA rate still almost equal to 0.5 for this variable
+```{r}
+unique(df$PERP_RACE)
+df %>%
+  filter(PERP_RACE %in% c(NA, "UNKNOWN", "(null)")) %>%
+  count() ->
+  perp_race_na_count
+
+# Pecentage of na values in this variable
+(perp_race_na_count / n) * 100
+
+# Convert na values to system NA
+df$PERP_RACE[df$PERP_RACE %in% c(NA, "UNKNOWN", "(null)")] = NA
+
+unique(df$PERP_RACE)
+```
+### 3. Exploratory Data Analysis and Visualization
+
+#### 3.1 Explore the case distribution in different characteristics of victim
+```{r}
+# Check out the victims
+unique(df$VIC_AGE_GROUP)
+df %>%
+  filter(VIC_AGE_GROUP != "1022") ->
+  df
+
+
+# Define a function to analyze and visualize a category column.
+analyze_category <- function(data, col_name){
+    ggplot(data) +
+    geom_bar(aes_string(y = col_name, fill = col_name))
+}
+
+# Analysis for victims
+analyze_category(df, "VIC_AGE_GROUP")
+analyze_category(df, "VIC_SEX")
+analyze_category(df, "VIC_RACE")
+
+```
+
+#### 3.2 Geospatial anaylysis on this dataset
+* Brooklyn and Bronx have the highest probability of incident occurrence
+* And public safety resources should probably be directed toward these two areas.
+```{r}
+# Analysis geographically
+analyze_category(df, "BORO")
+```
+
+#### 3.3 Temporal analysis on this dataset
+
+```{r}
+df %>%
+  mutate(year = year(OCCUR_DATE)) %>%
+  group_by(year) %>%
+  summarize(n = n()) %>%
+  ggplot() +
+  geom_line(aes(x = year, y = n), color = "blue", size = 3)
+
+df %>%
+  mutate(month = month(OCCUR_DATE)) %>%
+  group_by(month) %>%
+  summarize(n = n()) %>%
+  ggplot() +
+  geom_line(aes(x = month, y = n), color = "blue", size = 1)
+
+df %>%
+  mutate(day_of_week = weekdays(OCCUR_DATE)) %>%
+  group_by(day_of_week) %>%
+  summarize(n = n()) %>%
+  #arrange(n, desc(n)) %>%
+  ggplot() +
+  geom_col(aes(x = day_of_week, y = n), color = "blue", size = 1)
+```
+
+* Let's check the plot of cases per year first. We can see that before 2019, the cases descent almost every year. But somehow, cases number increased sharply from 2019 to 2020.
+* Checking the plot of cases per month, the most shootings occur in July and August.There seems to be a correlation between the number of shootings and the temperature.
+* Checking the plot of cases of day in a week, the most shootings occur in Saturdays and Sundays.
+
+
+### 4. Modeling
+
+#### 4.1 Prdictor selection
+```{r}
+
+# Predictors selection
+response <- "STATISTICAL_MURDER_FLAG"
+predictors <- c("VIC_AGE_GROUP", "VIC_SEX", "VIC_RACE", "BORO")
+predic_response <- c("VIC_AGE_GROUP", "VIC_SEX", "VIC_RACE", "BORO", "STATISTICAL_MURDER_FLAG")
+df_m <- df[predic_response]
+# Convert string into categorical variable
+df_m$VIC_AGE_GROUP <- factor(df_m$VIC_AGE_GROUP)
+df_m$VIC_SEX <- factor(df_m$VIC_SEX)
+df_m$VIC_RACE <- factor(df_m$VIC_RACE)
+df_m$BORO <- factor(df_m$BORO)
+df_m$STATISTICAL_MURDER_FLAG[df_m$STATISTICAL_MURDER_FLAG == TRUE] <- 1
+df_m$STATISTICAL_MURDER_FLAG[df_m$STATISTICAL_MURDER_FLAG == FALSE] <- 0
+```
+
+#### 4.2 Data cleaning before modeling
+* As the number of rows with NA value is a relative small comparing to the number of rows of whole dataset
+* I'm gonna just remove those rows with NA value.
+
+```{r}
+dim(df_m)
+
+# Calculate number of rows with NA value in the dataframe
+num_rows_with_na <- sum(rowSums(is.na(df_m)) > 0)
+cat("Number of rows with NA: ", (num_rows_with_na), "\n")
+
+cat("Propotion of rows with NA: ", num_rows_with_na/n, "\n")
+
+# Remove all the rows with NA values
+df_clean <- na.omit(df_m)
+dim(df_clean)
+
+#df_m$STATISTICAL_MURDER_FLAG <- factor(df_m$STATISTICAL_MURDER_FLAG)
+```
+
+#### 4.3  Split dataframe into tain set and test set firstly.
+```{r}
+
+# Set the seed for reproducibility
+set.seed(123)
+
+# Create a vector of indices
+indices <- sample(nrow(df_clean))
+
+# Calculate the number of rows for the training set (e.g., 80% of the data)
+train_size <- round(0.8 * nrow(df_clean))
+
+# Split the dataset into training and testing sets
+train_set <- df_clean[indices[1:train_size], ]
+test_set <- df_clean[indices[(train_size + 1):nrow(df_clean)], ]
+
+# Print the dimensions of the training and testing sets
+print(dim(train_set))
+print(dim(test_set))
+```
+
+#### 4.4 Modeling this dataset by linear model
+##### 4.4.1 Check data balance
+```{r}
+#count(train_set$STATISTICAL_MURDER_FLAG[train_set$STATISTICAL_MURDER_FLAG  == TRUE])
+# Assuming 'response' is your binary response variable
+response_counts <- table(train_set$STATISTICAL_MURDER_FLAG)
+print(response_counts)
+
+# Visualize the distribution of classes
+ggplot(train_set, aes(x = STATISTICAL_MURDER_FLAG)) +
+  geom_bar() +
+  labs(title = "Distribution of Response Variable Classes")
+
+# Compute class proportions
+class_proportions <- prop.table(response_counts)
+print(class_proportions)
+```
+
+##### 4.4.2 Modeling with logistic regression
+```{r}
+#glimpse(train_set)
+# Train a logistic regression model
+model <- glm(STATISTICAL_MURDER_FLAG ~ ., data = train_set, family = binomial)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = test_set, type = "response")
+
+# Convert predicted probabilities to binary predictions
+binary_predictions <- ifelse(predictions > 0.5, 1, 0)
+
+accuracy = mean(binary_predictions == test_set$STATISTICAL_MURDER_FLAG)
+
+print(paste("Accuracy:", accuracy))
+```
+* Since majority of the response is about 80% percent, then the model having 0.81 accuracy is not good enough.
+* use AUC-ROC instead of precision as it is a robust metric for evaluating classifiers on imbalanced datasets.
+
+```{r}
+#install.packages("pROC")
+library(pROC)
+# Compute AUC-ROC
+auc <- auc(roc(test_set$STATISTICAL_MURDER_FLAG, binary_predictions))
+auc
+
+```
+* AUC-ROC ranges from 0 to 1, where 0.5 indicates a random classifier (no predictive power), and 1 indicates a perfect classifier. As we got 0.5 in our case, this indicates that we had really not good model.
+* We can try to improve our glm model.
+* Or we can try other models on this dataset.
