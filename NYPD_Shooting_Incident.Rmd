@@ -11,11 +11,12 @@ output:
 ```{r include = FALSE}
 # Load libraries
 library(tidyverse)
-
+ 
 ```
 ### 1. Import data and get some basic understanding of the data.
-
-Use R to import and take a glimpse of the raw data.
+* Load the data from CSV file into R Dataframe.
+* Take a glimpse of the raw data.
+* My data is downloaded from data.gov, please check here: https://catalog.data.gov/dataset/nypd-shooting-incident-data-historic
 ```{r import_files}
 # Import files
 df <- read_csv("NYPD_Shooting_Incident_Data__Historic_.csv")
@@ -27,7 +28,7 @@ n
 
 As we can see the output from the above code. This data set has **27312** shooting incidents in total and **21** columns. 
 
-Next, let's check out the meaning of each column or variable.
+* Next, let's check out the meaning of each column or variable.
 
 Column | Description 
 -------|----------
@@ -54,16 +55,16 @@ Longitude          | Longitude coordinate for Global Coordinate System, WGS 1984
 Lon_Lat            | Combination of Latitude and Longtitude
 
 
+#### State the Purpose
+Try to find the reasons and key factors that cause the shooting cases, so as to help law enforcement and the government to adjust policies and improve the current situation.
+
+
+
 ### 2. Tidying and Transforming Data
+* Tidying the data involves cleaning up column names, dealing with missing values, and ensuring that the data is in a format suitable for analysis.
+* Transformation typically involves filtering data, creating new variables, and summarizing it to prepare for further analysis.
 
-#### Checkout the summary of the dataframe.
-* We can find out that the categorical varaibles didn't have NA value.
-* Do they really have no NA, or the NA values just hide in the strings, let's find out lately.
-```{r}
-summary(df)
-```
-#### Convert the columns to convenient data type
-
+#### 2.1 Convert the columns to convenient data type
 * Conver the OCCUR_DATE variable from date string to date data type
 ```{r}
 #glimpse(df)
@@ -71,43 +72,74 @@ summary(df)
 df$OCCUR_DATE = as.Date(df$OCCUR_DATE, format = "%m/%d/%Y")
 ```
 
-* Checkout NA values in VIC_AGE_GROUP
+
+
+#### 2.2 Remove duplicated columns or those won't be userful for modeling
+```{r}
+# columns before removing 
+print(colnames(df))
+
+# Example: Removing columns
+df <- df %>%
+  select(-INCIDENT_KEY, -LOC_OF_OCCUR_DESC, -LOC_CLASSFCTN_DESC, -LOCATION_DESC, -X_COORD_CD, -Y_COORD_CD, -Latitude, -Longitude, -Lon_Lat)
+
+# columns after removing 
+print(colnames(df))
+```
+
+
+
+#### 2.3 Checkout and handle NA values
+```{r}
+summary(df)
+```
+* We can find out that the categorical variables didn't have NA value.
+* Do they really have no NA, or the NA values just hide in the strings, let's find out lately.
+
+
+
+##### 2.2.1 Checkout NA values in VIC_AGE_GROUP
 ```{r}
 # Convert category columns to factors
 unique(df$VIC_AGE_GROUP)
+
 df %>%
   filter(VIC_AGE_GROUP %in% c("UNKNOWN")) %>%
   count() ->
   vic_age_na_count
 
+vic_age_na_count
 # Pecentage of na values in this variable
 (vic_age_na_count / n) * 100
 
-# Convert na values to system NA
-df$VIC_AGE_GROUP[df$VIC_AGE_GROUP == "UNKNOWN"] = NA
+
+# remove those UNKNOWN values
+df <- subset(df, VIC_AGE_GROUP != "UNKNOWN")
 
 unique(df$VIC_AGE_GROUP)
 ```
 
-* Checkout NA values in VIC_SEX
+##### 2.2.2  Checkout NA values in VIC_SEX
 U should stand for "undefined", let's set it to NA.
 ```{r}
 unique(df$VIC_SEX)
 df %>%
-  filter(VIC_SEX %in% c("UNKNOWN")) %>%
+  filter(VIC_SEX %in% c("U")) %>%
   count() ->
   vic_sex_na_count
 
+vic_sex_na_count
 # Pecentage of na values in this variable
 (vic_sex_na_count / n) * 100
 
-# Convert na values to system NA
-df$VIC_SEX[df$VIC_SEX == "U"] = NA
+
+# remove those UNKNOWN values
+df <- subset(df, VIC_SEX != "U")
 
 unique(df$VIC_SEX)
 ```
 
-* Checkout NA values in VIC_RACE
+##### 2.2.3  Checkout NA values in VIC_RACE
 ```{r}
 unique(df$VIC_RACE)
 df %>%
@@ -115,18 +147,18 @@ df %>%
   count() ->
   vic_race_na_count
 
+vic_race_na_count
 # Pecentage of na values in this variable
 (vic_race_na_count / n) * 100
 
-# Convert na values to system NA
-df$VIC_RACE[df$VIC_RACE == "UNKNOWN"] = NA
+
+# remove those UNKNOWN values
+df <- subset(df, VIC_RACE != "UNKNOWN")
 
 unique(df$VIC_RACE)
 ```
 
-* Checkout NA values in PERP_AGE_GROUP
-  * The rate of NA value in this variable is really high, and almost half of the observations are NA here.
-  * Therefore this variable might not useful for modeling, otherwise we need to remove almost half of the dataset.
+##### 2.2.4  Checkout NA values in PERP_AGE_GROUP
 ```{r}
 unique(df$PERP_AGE_GROUP)
 df %>%
@@ -134,16 +166,22 @@ df %>%
   count() ->
   perp_age_na_count
 
+perp_age_na_count
 # Pecentage of na values in this variable
 (perp_age_na_count / n) * 100
 
-# Convert na values to system NA
-df$PERP_AGE_GROUP[df$PERP_AGE_GROUP %in% c(NA, "UNKNOWN", "(null)")] = NA
+# Too many na values, remove this column
+df <- subset(df, select = -PERP_AGE_GROUP)
 
-unique(df$PERP_AGE_GROUP)
+print(colnames(df))
+
 ```
-
-* PERP_SEX
+  * The rate of NA value in this variable is really high, and almost half of the observations are NA here.
+  * Therefore this variable might not useful for modeling, otherwise we need to remove almost half of the dataset.
+  
+ 
+  
+##### 2.2.5  Checkout NA values in PERP_SEX
   * Like the previous variable PERP_AGE_GROUP, the rate of NA values in this variable is almost same as the PERP_AGE_GROUP.
 ```{r}
 unique(df$PERP_SEX)
@@ -156,13 +194,13 @@ perp_sex_na_count
 # Pecentage of na values in this variable
 (perp_sex_na_count / n) * 100
 
-# Convert na values to system NA
-df$PERP_SEX[df$PERP_SEX %in% c(NA, "UNKNOWN", "(null)")] = NA
+# Too many na values, remove this column
+df <- subset(df, select = -PERP_SEX)
 
-unique(df$PERP_SEX)
+print(colnames(df))
 ```
 
-* PERP_RACE
+##### 2.2.6  Checkout NA values in PERP_RACE
   * NA rate still almost equal to 0.5 for this variable
 ```{r}
 unique(df$PERP_RACE)
@@ -171,13 +209,46 @@ df %>%
   count() ->
   perp_race_na_count
 
+perp_race_na_count
 # Pecentage of na values in this variable
 (perp_race_na_count / n) * 100
 
-# Convert na values to system NA
-df$PERP_RACE[df$PERP_RACE %in% c(NA, "UNKNOWN", "(null)")] = NA
+# Too many na values, remove this column
+df <- subset(df, select = -PERP_RACE)
 
-unique(df$PERP_RACE)
+print(colnames(df))
+```
+##### 2.2.7  Checkout NA values in PERP_RACE
+```{r}
+unique(df$JURISDICTION_CODE)
+df %>%
+  filter(JURISDICTION_CODE %in% c(NA, "UNKNOWN", "(null)")) %>%
+  count() ->
+  JURISDICTION_CODE_na_count
+
+JURISDICTION_CODE_na_count
+# Pecentage of na values in this variable
+(JURISDICTION_CODE_na_count / n) * 100
+
+# remove rows with NA 
+df <- subset(df, JURISDICTION_CODE != "NA")
+
+unique(df$JURISDICTION_CODE)
+
+```
+
+##### 2.2.8  Checkout NA values in remain columns
+```{r}
+unique(df$BORO)
+unique(df$PRECINCT)
+unique(df$STATISTICAL_MURDER_FLAG)
+
+# Check the number of NA values
+sum(is.na(df$OCCUR_TIME))  # Count NA in OCCUR_TIME
+sum(is.na(df$OCCUR_DATE))  # Count NA in OCCUR_DATE
+
+# print remain colunms after data clean
+print(colnames(df))
 ```
 ### 3. Exploratory Data Analysis and Visualization
 
@@ -214,139 +285,99 @@ analyze_category(df, "BORO")
 #### 3.3 Temporal analysis on this dataset
 
 ```{r}
-df %>%
-  mutate(year = year(OCCUR_DATE)) %>%
+yearly_data <- df %>%
+  mutate(year = as.integer(year(OCCUR_DATE))) %>%
   group_by(year) %>%
-  summarize(n = n()) %>%
-  ggplot() +
-  geom_line(aes(x = year, y = n), color = "blue", size = 3)
+  summarize(n = n(), .groups = 'drop')
 
-df %>%
-  mutate(month = month(OCCUR_DATE)) %>%
-  group_by(month) %>%
-  summarize(n = n()) %>%
-  ggplot() +
-  geom_line(aes(x = month, y = n), color = "blue", size = 1)
+ggplot(yearly_data, aes(x = year, y = n)) +
+  geom_line(color = "blue", size = 2) +
+  labs(title = "Shooting Incidents in Years", 
+       x = "Year", 
+       y = "Number of Shootings") +
+  scale_x_continuous(breaks = seq(min(yearly_data$year), max(yearly_data$year), by = 1)) +
+  scale_y_continuous(limits = c(min(yearly_data$n), max(yearly_data$n)), 
+                       breaks = seq(0, max(yearly_data$n), by = 300)) +
+  annotate("text", x = max(yearly_data$year), y = 0, label = "Start", vjust = -1) 
 
-df %>%
-  mutate(day_of_week = weekdays(OCCUR_DATE)) %>%
-  group_by(day_of_week) %>%
-  summarize(n = n()) %>%
-  #arrange(n, desc(n)) %>%
-  ggplot() +
-  geom_col(aes(x = day_of_week, y = n), color = "blue", size = 1)
+
 ```
 
 * Let's check the plot of cases per year first. We can see that before 2019, the cases descent almost every year. But somehow, cases number increased sharply from 2019 to 2020.
-* Checking the plot of cases per month, the most shootings occur in July and August.There seems to be a correlation between the number of shootings and the temperature.
-* Checking the plot of cases of day in a week, the most shootings occur in Saturdays and Sundays.
+* Maybe The Covid has some impact on it.
+
+
+
+
+
+```{r}
+monthly_data <- df %>%
+  mutate(month = as.integer(month(OCCUR_DATE))) %>%
+  group_by(month) %>%
+  summarize(n = n(), .groups = 'drop')
+
+ggplot(monthly_data, aes(x = month, y = n)) +
+  geom_line(color = "blue", size = 2) +
+  labs(title = "Shooting Incidents in Month", 
+       x = "Month", 
+       y = "Number of Shootings") +
+  scale_x_continuous(breaks = seq(min(monthly_data$month), max(monthly_data$month), by = 1)) +
+  scale_y_continuous(limits = c(min(monthly_data$n), max(monthly_data$n)), 
+                       breaks = seq(0, max(monthly_data$n), by = 300)) +
+  annotate("text", x = max(monthly_data$month), y = 0, label = "Start", vjust = -1) 
+
+```
+
+* Checking the plot of cases per month, the most shootings occur in July and August.
+* There seems to be a correlation between the number of shootings and the temperature.
 
 
 ### 4. Modeling
-
-#### 4.1 Prdictor selection
 ```{r}
+# Convert 'occur_date' to Date type and extract the year
+df_t <- df %>%
+  mutate(occur_date = as.Date(OCCUR_DATE, format="%m/%d/%Y"), 
+         occur_year = lubridate::year(OCCUR_DATE))
 
-# Predictors selection
-response <- "STATISTICAL_MURDER_FLAG"
-predictors <- c("VIC_AGE_GROUP", "VIC_SEX", "VIC_RACE", "BORO")
-predic_response <- c("VIC_AGE_GROUP", "VIC_SEX", "VIC_RACE", "BORO", "STATISTICAL_MURDER_FLAG")
-df_m <- df[predic_response]
-# Convert string into categorical variable
-df_m$VIC_AGE_GROUP <- factor(df_m$VIC_AGE_GROUP)
-df_m$VIC_SEX <- factor(df_m$VIC_SEX)
-df_m$VIC_RACE <- factor(df_m$VIC_RACE)
-df_m$BORO <- factor(df_m$BORO)
-df_m$STATISTICAL_MURDER_FLAG[df_m$STATISTICAL_MURDER_FLAG == TRUE] <- 1
-df_m$STATISTICAL_MURDER_FLAG[df_m$STATISTICAL_MURDER_FLAG == FALSE] <- 0
+# Group the data by borough and year to summarize the number of shooting incidents
+data_grouped <- df_t %>%
+  group_by(BORO, occur_year) %>%
+  summarise(shooting_count = n()) %>%
+  ungroup()
+
+head(data_grouped)
+
 ```
 
-#### 4.2 Data cleaning before modeling
-* As the number of rows with NA value is a relative small comparing to the number of rows of whole dataset
-* I'm gonna just remove those rows with NA value.
-
 ```{r}
-dim(df_m)
-
-# Calculate number of rows with NA value in the dataframe
-num_rows_with_na <- sum(rowSums(is.na(df_m)) > 0)
-cat("Number of rows with NA: ", (num_rows_with_na), "\n")
-
-cat("Propotion of rows with NA: ", num_rows_with_na/n, "\n")
-
-# Remove all the rows with NA values
-df_clean <- na.omit(df_m)
-dim(df_clean)
-
-#df_m$STATISTICAL_MURDER_FLAG <- factor(df_m$STATISTICAL_MURDER_FLAG)
+ggplot(data_grouped, aes(x = occur_year, y = shooting_count, color = BORO)) +
+  geom_line() +
+  labs(title = "Shooting Incidents by Borough over Time", 
+       x = "Year", 
+       y = "Number of Shootings") +
+  theme_minimal()
 ```
 
-#### 4.3  Split dataframe into tain set and test set firstly.
 ```{r}
+# Create a linear model to see trends over time
+model <- lm(shooting_count ~ occur_year + BORO, data = data_grouped)
 
-# Set the seed for reproducibility
-set.seed(123)
-
-# Create a vector of indices
-indices <- sample(nrow(df_clean))
-
-# Calculate the number of rows for the training set (e.g., 80% of the data)
-train_size <- round(0.8 * nrow(df_clean))
-
-# Split the dataset into training and testing sets
-train_set <- df_clean[indices[1:train_size], ]
-test_set <- df_clean[indices[(train_size + 1):nrow(df_clean)], ]
-
-# Print the dimensions of the training and testing sets
-print(dim(train_set))
-print(dim(test_set))
+# Print the summary of the model
+summary(model)
 ```
+### 5. Conclusion
+This report analyzed the NYPD Shooting Incident Data to explore trends in shooting incidents across various boroughs in New York City over time. The primary objective was to identify whether there are discernible trends in the number of shootings across boroughs and determine if certain boroughs are more prone to shooting incidents.
 
-#### 4.4 Modeling this dataset by linear model
-##### 4.4.1 Check data balance
-```{r}
-#count(train_set$STATISTICAL_MURDER_FLAG[train_set$STATISTICAL_MURDER_FLAG  == TRUE])
-# Assuming 'response' is your binary response variable
-response_counts <- table(train_set$STATISTICAL_MURDER_FLAG)
-print(response_counts)
+The analysis revealed that the boroughs of Brooklyn and the Bronx consistently experienced higher numbers of shootings compared to Manhattan, Queens, and Staten Island. Additionally, the number of incidents showed an overall decline after a peak in the early 2000s, which may reflect changes in policing strategies, community programs, or socio-economic factors. It also increase sharply from 2019 to 2020, which might caused by the Covid.  
 
-# Visualize the distribution of classes
-ggplot(train_set, aes(x = STATISTICAL_MURDER_FLAG)) +
-  geom_bar() +
-  labs(title = "Distribution of Response Variable Classes")
+#### Possible Sources of Bias
 
-# Compute class proportions
-class_proportions <- prop.table(response_counts)
-print(class_proportions)
-```
+While this analysis offers valuable insights, several sources of bias must be considered. Firstly, the dataset may contain reporting biases, where certain incidents might not have been reported or properly recorded. Secondly, missing data, such as incomplete incident details or incorrect categorization of boroughs, could have skewed the results.
 
-##### 4.4.2 Modeling with logistic regression
-```{r}
-#glimpse(train_set)
-# Train a logistic regression model
-model <- glm(STATISTICAL_MURDER_FLAG ~ ., data = train_set, family = binomial)
+#### Personal Bias and Mitigation
 
-# Make predictions on the test set
-predictions <- predict(model, newdata = test_set, type = "response")
+As a researcher, my personal bias may stem from my prior knowledge of New York City and assumptions regarding which boroughs might have higher crime rates. To mitigate this bias, I relied solely on the data-driven trends, avoiding assumptions based on my preconceived notions of the city. Additionally, I conducted an objective and systematic analysis of all boroughs rather than focusing disproportionately on any specific borough.
 
-# Convert predicted probabilities to binary predictions
-binary_predictions <- ifelse(predictions > 0.5, 1, 0)
+#### Future Work
 
-accuracy = mean(binary_predictions == test_set$STATISTICAL_MURDER_FLAG)
-
-print(paste("Accuracy:", accuracy))
-```
-* Since majority of the response is about 80% percent, then the model having 0.81 accuracy is not good enough.
-* use AUC-ROC instead of precision as it is a robust metric for evaluating classifiers on imbalanced datasets.
-
-```{r}
-#install.packages("pROC")
-library(pROC)
-# Compute AUC-ROC
-auc <- auc(roc(test_set$STATISTICAL_MURDER_FLAG, binary_predictions))
-auc
-
-```
-* AUC-ROC ranges from 0 to 1, where 0.5 indicates a random classifier (no predictive power), and 1 indicates a perfect classifier. As we got 0.5 in our case, this indicates that we had really not good model.
-* We can try to improve our glm model.
-* Or we can try other models on this dataset.
+This analysis is limited by the scope of the available dataset, which focuses solely on recorded shooting incidents. Future analyses should consider integrating socio-economic data, police activity records, and crime reporting patterns to offer a more comprehensive understanding of the factors driving these incidents. 
