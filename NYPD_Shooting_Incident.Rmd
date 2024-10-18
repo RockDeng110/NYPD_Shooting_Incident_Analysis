@@ -56,7 +56,7 @@ Lon_Lat            | Combination of Latitude and Longtitude
 
 
 #### State the Purpose
-Try to find the reasons and key factors that cause the shooting cases, so as to help law enforcement and the government to adjust policies and improve the current situation.
+Analyze the NYPD shooting incidents to find out deep insights of the dataset and help law enforcement and the government to adjust policies and improve the current situation.
 
 
 
